@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Analysis: NYC Flood Risk Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .map-placeholder {
+            width: 100%;
+            padding-bottom: 75%;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            border-radius: 0.5rem;
+        }
+        .map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(30, 64, 175, 0.6);
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .map-placeholder.flooded .map-overlay {
+            opacity: 1;
+        }
+        /* Custom slider styles */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #d1d5db; /* gray-300 */
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type=range]:hover {
+            opacity: 1;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #2563eb; /* blue-600 */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #2563eb; /* blue-600 */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">NYC Flood Risk: An Interactive Analysis</h1>
+            <p class="mt-2 text-md text-slate-600">Exploring why one data processing step redefines our understanding of urban flood vulnerability.</p>
+        </div>
+    </header>
+
+    <main class="py-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+
+            <section id="dem-explanation">
+                <div class="text-center">
+                    <h2 class="text-xl font-semibold text-blue-600">The Foundation</h2>
+                    <h3 class="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">The Tale of the Terrain</h3>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
+                        Flood simulations rely on Digital Elevation Models (DEMs), which are 3D maps of the ground. However, raw DEMs contain small errors called "depressions" that can trap simulated water, leading to inaccurate results. This section explains the critical process of "hydrological correction" used to fix these errors and create a realistic surface for modeling.
+                    </p>
+                </div>
+                <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+                        <h4 class="text-xl font-semibold text-slate-900">1. Original DEM</h4>
+                        <div class="mt-4 h-48 w-full bg-cover bg-center rounded" style="background-image: url('https://placehold.co/600x400/d1fae5/1e40af?text=Original+Terrain');"></div>
+                        <p class="mt-4 text-slate-600">Raw terrain data often contains artificial pits and sinks that don't exist in reality.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+                         <h4 class="text-xl font-semibold text-slate-900">2. Depression Filling</h4>
+                        <div class="mt-4 h-48 w-full bg-cover bg-center rounded" style="background-image: url('https://placehold.co/600x400/fecaca/b91c1c?text=Corrections+Applied');"></div>
+                        <p class="mt-4 text-slate-600">A process raises the elevation of these pits, ensuring water can flow naturally across the landscape.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+                         <h4 class="text-xl font-semibold text-slate-900">3. Corrected DEM</h4>
+                        <div class="mt-4 h-48 w-full bg-cover bg-center rounded" style="background-image: url('https://placehold.co/600x400/dbeafe/1e3a8a?text=Corrected+Terrain');"></div>
+                        <p class="mt-4 text-slate-600">The resulting surface is hydrologically correct, providing an accurate base for simulation.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="comparison">
+                 <div class="text-center">
+                    <h2 class="text-xl font-semibold text-blue-600">The "Aha!" Moment</h2>
+                    <h3 class="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">One Input, Two Drastically Different Realities</h3>
+                     <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
+                        To see why DEM correction is so critical, we compare two simulations using the exact same water level input. The result is a stark demonstration of how uncorrected data can completely mask catastrophic risk, while corrected data reveals the true threat.
+                    </p>
+                </div>
+                <div class="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-red-50 border-l-4 border-red-500 p-8 rounded-r-lg shadow-md">
+                        <h4 class="text-2xl font-bold text-red-800">Without Correction</h4>
+                        <p class="text-red-700 mt-2">Simulation on the Original DEM</p>
+                        <div class="mt-6 map-placeholder" style="background-image: url('https://storage.googleapis.com/gweb-aip-canvas-screenshots/connected_flood_wl34.30.jpg');" onerror="this.onerror=null;this.style.backgroundImage='url(https://placehold.co/800x600/fee2e2/991b1b?text=Map+Unavailable)'">
+                           <div class="map-overlay"></div>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <p class="text-lg text-red-700">Water Level Input: 34.30</p>
+                            <p class="text-4xl font-extrabold text-red-800 mt-2">0% Flooded Area</p>
+                            <p class="mt-4 text-red-600">The simulation is fundamentally misleading. Artificial depressions trap all the water, showing no flooding and creating a false sense of security.</p>
+                        </div>
+                    </div>
+                     <div class="bg-blue-50 border-l-4 border-blue-500 p-8 rounded-r-lg shadow-md">
+                        <h4 class="text-2xl font-bold text-blue-800">With Correction</h4>
+                        <p class="text-blue-700 mt-2">Simulation on the Depression-Filled DEM</p>
+                         <div class="mt-6 map-placeholder flooded" style="background-image: url('https://storage.googleapis.com/gweb-aip-canvas-screenshots/flood_filled_dem_wl34.30.jpg');" onerror="this.onerror=null;this.style.backgroundImage='url(https://placehold.co/800x600/dbeafe/1e3a8a?text=Map+Unavailable)'">
+                           <div class="map-overlay"></div>
+                        </div>
+                        <div class="mt-6 text-center">
+                             <p class="text-lg text-blue-700">Water Level Input: 34.30</p>
+                            <p class="text-4xl font-extrabold text-blue-800 mt-2">Widespread Flooding</p>
+                             <p class="mt-4 text-blue-600">The simulation is realistic. With corrected terrain, water flows freely, revealing significant inundation across coastal areas as expected.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="interactive-simulation">
+                 <div class="text-center">
+                    <h2 class="text-xl font-semibold text-blue-600">Explore the Scenarios</h2>
+                    <h3 class="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">How Far Does the Water Go?</h3>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
+                        Using the corrected DEM, we can simulate how flooding progresses as water levels rise. Use the slider below to explore different scenarios, from minor coastal encroachment to catastrophic regional flooding. Observe how the maximum flood depth and affected areas change with each step.
+                    </p>
+                </div>
+
+                <div class="mt-12 bg-white p-6 sm:p-8 rounded-lg shadow-lg">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                        <div class="md:col-span-2">
+                             <div class="flex justify-between items-baseline">
+                                <h4 id="scenario-title" class="text-2xl font-bold text-slate-800">Minimal Inundation</h4>
+                                <div class="relative group">
+                                    <span class="text-slate-500 cursor-help">&#9432;</span>
+                                    <div class="absolute bottom-full mb-2 w-64 bg-slate-800 text-white text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                                        The 'Water Level' and 'Max Depth' values are relative model inputs used for simulation, not literal feet or meters. Higher values correspond to more severe flood events.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 space-y-2">
+                                <p class="text-slate-600">Water Level: <strong id="scenario-water-level" class="text-blue-600">...</strong></p>
+                                <p class="text-slate-600">Max Depth: <strong id="scenario-max-depth" class="text-blue-600">...</strong></p>
+                            </div>
+                            <p id="scenario-description" class="mt-4 text-slate-700 h-32">
+                                Description loads here...
+                            </p>
+                            <div class="mt-6">
+                                <label for="water-level-slider" class="block text-sm font-medium text-slate-700">Select Flood Scenario:</label>
+                                <input id="water-level-slider" type="range" min="0" max="4" value="0" step="1" class="mt-2 w-full">
+                            </div>
+                        </div>
+                        <div class="md:col-span-3">
+                             <div class="chart-container">
+                                <canvas id="flood-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+             <section id="vulnerabilities">
+                <div class="text-center">
+                    <h2 class="text-xl font-semibold text-blue-600">Identified Risks</h2>
+                    <h3 class="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">What's at Stake for New York City?</h3>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
+                        The realistic simulations reveal clear patterns of vulnerability across the metropolitan area. Flooding poses a significant threat not just to buildings, but to the interconnected systems that allow the city to function. Here are the key areas of concern identified by the analysis.
+                    </p>
+                </div>
+                <div class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow text-center">
+                        <div class="text-4xl">🌊</div>
+                        <h4 class="mt-4 text-lg font-semibold">Coastal Zones</h4>
+                        <p class="mt-2 text-slate-600">Extensive coastlines and low-lying waterfronts in all boroughs are the first and most severely impacted areas.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow text-center">
+                        <div class="text-4xl">🚇</div>
+                        <h4 class="mt-4 text-lg font-semibold">Transportation</h4>
+                        <p class="mt-2 text-slate-600">Subways, tunnels, and major roadways in low areas are highly susceptible, risking city-wide disruption.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow text-center">
+                        <div class="text-4xl">⚡</div>
+                        <h4 class="mt-4 text-lg font-semibold">Critical Infrastructure</h4>
+                        <p class="mt-2 text-slate-600">Power substations, hospitals, and water treatment plants in floodplains face operational failure.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow text-center">
+                        <div class="text-4xl">🏙️</div>
+                        <h4 class="mt-4 text-lg font-semibold">Population Centers</h4>
+                        <p class="mt-2 text-slate-600">Densely populated residential and commercial areas along the waterfront are at high risk.</p>
+                    </div>
+                </div>
+            </section>
+
+             <section id="recommendations">
+                 <div class="text-center">
+                    <h2 class="text-xl font-semibold text-blue-600">The Path Forward</h2>
+                    <h3 class="mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Building a More Resilient City</h3>
+                     <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
+                        Accurate modeling is the first step toward effective action. The report's findings lead to clear recommendations for policy, planning, and future research that can help New York City better prepare for and mitigate the impacts of flooding.
+                    </p>
+                </div>
+                <div class="mt-12 max-w-3xl mx-auto space-y-4">
+                    <div class="accordion-item bg-white rounded-lg shadow">
+                        <button class="accordion-header w-full text-left p-4 font-semibold text-lg flex justify-between items-center">
+                            Planning & Policy
+                            <span class="transform transition-transform duration-300">&#9662;</span>
+                        </button>
+                        <div class="accordion-content">
+                            <ul class="p-4 pt-0 list-disc list-inside text-slate-600 space-y-2">
+                                <li>Integrate flood maps into zoning and land-use plans.</li>
+                                <li>Restrict new development in high-risk zones.</li>
+                                <li>Promote and mandate resilient building codes.</li>
+                            </ul>
+                        </div>
+                    </div>
+                     <div class="accordion-item bg-white rounded-lg shadow">
+                        <button class="accordion-header w-full text-left p-4 font-semibold text-lg flex justify-between items-center">
+                            Infrastructure & Emergency Response
+                            <span class="transform transition-transform duration-300">&#9662;</span>
+                        </button>
+                        <div class="accordion-content">
+                             <ul class="p-4 pt-0 list-disc list-inside text-slate-600 space-y-2">
+                                <li>Design and retrofit critical infrastructure (subways, utilities) to be flood-proof.</li>
+                                <li>Develop dynamic evacuation routes based on realistic inundation scenarios.</li>
+                                <li>Disseminate clear flood risk information to the public.</li>
+                            </ul>
+                        </div>
+                    </div>
+                     <div class="accordion-item bg-white rounded-lg shadow">
+                        <button class="accordion-header w-full text-left p-4 font-semibold text-lg flex justify-between items-center">
+                            Future Research & Modeling
+                            <span class="transform transition-transform duration-300">&#9662;</span>
+                        </button>
+                        <div class="accordion-content">
+                             <ul class="p-4 pt-0 list-disc list-inside text-slate-600 space-y-2">
+                                <li>Conduct higher-resolution modeling for specific, high-value neighborhoods.</li>
+                                <li>Perform detailed economic and social equity impact analyses.</li>
+                                <li>Incorporate dynamic factors like rainfall, storm surge, and sea-level rise into future simulations.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="bg-slate-800 text-white mt-16">
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-sm">
+            <p>This interactive application is based on the findings of the "Flood Risk Analysis for the New York City Region" report.</p>
+            <p class="mt-1 text-slate-400">Application developed for illustrative and educational purposes.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const scenarioData = [
+                { title: 'Minimal Inundation', waterLevel: -15.90, maxDepth: 11.10, description: "At the lowest simulated water level, inundation is minimal, largely confined to the immediate coastal fringes and the deepest parts of major waterways." },
+                { title: 'Significant Coastal Flooding', waterLevel: 9.20, maxDepth: 50.20, description: "A notable increase in water level leads to substantial expansion of the flooded area. Coastal and estuarine flooding becomes pronounced, affecting major waterways and low-lying waterfront areas." },
+                { title: 'Widespread Urban Inundation', waterLevel: 34.30, maxDepth: 75.30, description: "Widespread urban inundation impacts extensive portions of all boroughs' waterfronts. This highlights how proper DEM processing reveals realistic, extensive flood risk." },
+                { title: 'Severe & Extensive Flooding', waterLevel: 59.40, maxDepth: 100.40, description: "The simulations depict severe and extensive flooding, reaching further inland and impacting critical infrastructure and densely populated areas previously unaffected." },
+                { title: 'Catastrophic Regional Flooding', waterLevel: 84.50, maxDepth: 125.50, description: "At the highest simulated water level, the New York City region experiences catastrophic regional flooding, with vast areas submerged and only the highest elevations remaining dry." }
+            ];
+
+            const slider = document.getElementById('water-level-slider');
+            const scenarioTitle = document.getElementById('scenario-title');
+            const scenarioWaterLevel = document.getElementById('scenario-water-level');
+            const scenarioMaxDepth = document.getElementById('scenario-max-depth');
+            const scenarioDescription = document.getElementById('scenario-description');
+
+            const chartCtx = document.getElementById('flood-chart').getContext('2d');
+            const defaultBarColor = 'rgba(219, 234, 254, 0.7)';
+            const activeBarColor = 'rgba(37, 99, 235, 1)';
+            
+            const chart = new Chart(chartCtx, {
+                type: 'bar',
+                data: {
+                    labels: scenarioData.map(s => s.title.split(' ').slice(0, 2).join(' ')),
+                    datasets: [{
+                        label: 'Maximum Flood Depth',
+                        data: scenarioData.map(s => s.maxDepth),
+                        backgroundColor: scenarioData.map((_, i) => i === 0 ? activeBarColor : defaultBarColor),
+                        borderColor: scenarioData.map((_, i) => i === 0 ? 'rgba(30, 64, 175, 1)' : 'rgba(191, 219, 254, 1)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    return scenarioData[tooltipItems[0].dataIndex].title;
+                                },
+                                label: function(context) {
+                                    return `Max Depth: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Relative Max Depth'
+                            }
+                        },
+                        x: {
+                             ticks: {
+                                maxRotation: 0,
+                                minRotation: 0,
+                                autoSkip: false,
+                                callback: function(value, index, values) {
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 15 ? label.substring(0, 15) + '...' : label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            function updateScenario(index) {
+                const data = scenarioData[index];
+                scenarioTitle.textContent = data.title;
+                scenarioWaterLevel.textContent = data.waterLevel.toFixed(2);
+                scenarioMaxDepth.textContent = data.maxDepth.toFixed(2);
+                scenarioDescription.textContent = data.description;
+                
+                chart.data.datasets[0].backgroundColor = scenarioData.map((_, i) => i == index ? activeBarColor : defaultBarColor);
+                chart.data.datasets[0].borderColor = scenarioData.map((_, i) => i == index ? 'rgba(30, 64, 175, 1)' : 'rgba(191, 219, 254, 1)');
+                chart.update();
+            }
+
+            slider.addEventListener('input', (event) => {
+                updateScenario(event.target.value);
+            });
+
+            updateScenario(0);
+
+            document.querySelectorAll('.accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const icon = header.querySelector('span');
+                    
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        document.querySelectorAll('.accordion-content').forEach(c => c.style.maxHeight = null);
+                        document.querySelectorAll('.accordion-header span').forEach(i => i.style.transform = 'rotate(0deg)');
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                        icon.style.transform = 'rotate(180deg)';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
